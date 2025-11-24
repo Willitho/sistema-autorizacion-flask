@@ -38,7 +38,14 @@
         </nav>
 
         <div class="content container py-4">
-            <h1>🚨 Solicitudes **PENDIENTES** de Autorizar</h1>
+            
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h1>🚨 Solicitudes PENDIENTES</h1>
+                
+                <a href="{{ url_for('descargar_historial_pdf') }}" class="btn btn-danger btn-sm">
+                    ⬇️ Descargar Historial Completo (PDF)
+                </a>
+            </div>
 
             {% if not solicitudes %}
                 <div class="alert alert-info mt-3" role="alert">
@@ -47,7 +54,7 @@
             {% else %}
             
             <div class="table-responsive">
-                <table class="table table-striped table-hover mt-3">
+                <table class="table table-striped table-hover">
                     <thead class="table-dark">
                         <tr>
                             <th>ID DB</th>
@@ -84,6 +91,7 @@
             
             {% endif %}
         </div>
-    </div> {% include 'footer.html' %}
+    </div> 
+    {% include 'footer.html' %}
 </body>
 </html>

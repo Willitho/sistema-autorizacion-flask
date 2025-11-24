@@ -75,7 +75,8 @@
                             <th onclick="sortTable(2)">Período</th>
                             <th onclick="sortTable(3)">Dirección</th>
                             <th onclick="sortTable(4)">Comisaría</th>
-                            <th onclick="sortTable(5)">Estado</th>
+                            <th onclick="sortTable(5)">Contacto</th>
+                            <th onclick="sortTable(6)">Estado</th>
                             {% if current_user.is_authenticated and current_user.rol == 'Administrador' %}
                             <th>Acciones</th>
                             {% endif %}
@@ -89,6 +90,7 @@
                             <td>{{ sol.get_fecha_inicio() }} - {{ sol.get_fecha_fin() }}</td>
                             <td>{{ sol.direccion }}</td>
                             <td>{{ sol.comisaria_cercana }}</td>
+                            <td>{{ sol.contacto }}</td>
                             <td class="estado-{{ sol.estado }}">
                                 {{ sol.estado }}
                                 {% if sol.autorizador %}

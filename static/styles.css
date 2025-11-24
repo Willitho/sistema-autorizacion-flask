@@ -1,5 +1,12 @@
 /* static/styles.css */
-/* Estilos para el Sticky Footer */
+
+/* Esto es CRÍTICO para asegurar que padding y border no aumenten el tamaño del elemento */
+html {
+  box-sizing: border-box;
+}
+*, *::before, *::after {
+  box-sizing: inherit;
+}
 
 html, body {
     height: 100%; /* Asegura que la altura del html y body abarque toda la ventana */
@@ -14,4 +21,6 @@ html, body {
 
 .content {
     flex-grow: 1; /* El contenido principal ocupa todo el espacio restante, empujando el footer */
+    /* Aquí NO debe haber padding-bottom ni margin-bottom que el wrapper no pueda compensar */
+    /* El py-4 en el HTML está bien porque el wrapper lo encapsula correctamente con box-sizing */
 }
