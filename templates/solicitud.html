@@ -40,7 +40,7 @@
         <div class="content container py-4">
             <div class="row justify-content-center">
                 <div class="col-md-8 col-lg-6">
-                    <h1 class="mb-4">📋 Solicitud Lista 3</h1>
+                    <h1 class="mb-4">📋 Pedido de Autorización de Estancia</h1>
                     <div class="card p-4">
                         <form method="POST">
                             <div class="mb-3">
@@ -59,6 +59,10 @@
                                 </div>
                             </div>
 
+                            <div class="mb-3">
+                                <label for="servicio" class="form-label">📝 Servicio Requerido:</label>
+                                <input type="text" id="servicio" name="servicio" class="form-control" required>
+                            </div>
                             <div class="mb-3">
                                 <label for="direccion" class="form-label">📍 Dirección de Estancia:</label>
                                 <input type="text" id="direccion" name="direccion" class="form-control" required>
@@ -80,6 +84,7 @@
                 </div>
             </div>
         </div>
-    </div> {% include 'footer.html' %}
+    </div> 
+    {% include 'footer.html' %}
 </body>
 </html>

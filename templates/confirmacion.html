@@ -56,6 +56,7 @@
                             
                             <h5 class="text-start">Detalles Registrados:</h5>
                             <ul class="list-group list-group-flush text-start">
+                                <li class="list-group-item"><strong>Servicio Requerido:</strong> {{ solicitud.servicio }}</li>
                                 <li class="list-group-item"><strong>Período:</strong> {{ solicitud.get_fecha_inicio() }} al {{ solicitud.get_fecha_fin() }}</li>
                                 <li class="list-group-item"><strong>Dirección:</strong> {{ solicitud.direccion }}</li>
                                 <li class="list-group-item"><strong>Comisaría Cercana:</strong> {{ solicitud.comisaria_cercana }}</li>
@@ -73,6 +74,7 @@
                 </div>
             </div>
         </div>
-    </div> {% include 'footer.html' %}
+    </div> 
+    {% include 'footer.html' %}
 </body>
 </html>

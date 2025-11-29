@@ -72,10 +72,10 @@
                         <tr>
                             <th onclick="sortTable(0)">ID</th>
                             <th onclick="sortTable(1)">Solicitante</th>
-                            <th onclick="sortTable(2)">Período</th>
-                            <th onclick="sortTable(3)">Dirección</th>
-                            <th onclick="sortTable(4)">Comisaría</th>
-                            <th onclick="sortTable(5)">Contacto</th>
+                            <th onclick="sortTable(2)">Servicio</th>
+                            <th onclick="sortTable(3)">Período</th>
+                            <th onclick="sortTable(4)">Dirección</th>
+                            <th onclick="sortTable(5)">Comisaría</th>
                             <th onclick="sortTable(6)">Estado</th>
                             {% if current_user.is_authenticated and current_user.rol == 'Administrador' %}
                             <th>Acciones</th>
@@ -87,10 +87,10 @@
                         <tr data-status="{{ sol.estado }}">
                             <td>{{ sol.id }}</td>
                             <td>{{ sol.solicitante }}</td>
+                            <td>{{ sol.servicio }}</td>
                             <td>{{ sol.get_fecha_inicio() }} - {{ sol.get_fecha_fin() }}</td>
                             <td>{{ sol.direccion }}</td>
                             <td>{{ sol.comisaria_cercana }}</td>
-                            <td>{{ sol.contacto }}</td>
                             <td class="estado-{{ sol.estado }}">
                                 {{ sol.estado }}
                                 {% if sol.autorizador %}
@@ -117,7 +117,8 @@
             
             <p>Total de Solicitudes Ingresadas: <strong>{{ solicitudes | length }}</strong></p>
         </div>
-    </div> {% include 'footer.html' %}
+    </div> 
+    {% include 'footer.html' %}
     <script>
         // Funciones JavaScript para Filtrado y Ordenamiento
         function filterTable() {

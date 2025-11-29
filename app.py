@@ -1,23 +1,21 @@
-# Importaciones base de Flask y la DB
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, Response # AÑADIDO: Response
+from flask import Flask, render_template, request, redirect, url_for, flash, Response
 from datetime import datetime
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# Importaciones para PDF (ReportLab)
-from reportlab.lib.pagesizes import letter
+# PDF Imports
+from reportlab.lib.pagesizes import letter, landscape
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
-from io import BytesIO # ¡IMPORTACIÓN CRUCIAL PARA GENERAR PDF EN MEMORIA!
-from flask import Response
-from reportlab.lib.pagesizes import letter, landscape
+from io import BytesIO
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'SUPER_SECRETO_Y_COMPLEJO_DEBES_CAMBIAR_ESTO' # Clave de seguridad
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///solicitudes.db' # Base de datos local
+# Usar variable de entorno si está disponible, si no, usar fallback local
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'CLAVE_SECRETA_LOCAL_DE_FALLBACK'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///solicitudes.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -46,24 +44,20 @@ def load_user(user_id):
 
 # --- MODELO DE SOLICITUDES PERSISTENTES (SolicitudDB) ---
 class SolicitudDB(db.Model):
-    # ID real de la base de datos (clave primaria)
     id = db.Column(db.Integer, primary_key=True)
-    
-    # Datos de la solicitud
     solicitante = db.Column(db.String(100), nullable=False)
-    fecha_inicio_str = db.Column(db.String(10), nullable=False) # Formato YYYY-MM-DD
+    fecha_inicio_str = db.Column(db.String(10), nullable=False)
     fecha_fin_str = db.Column(db.String(10), nullable=False)
     direccion = db.Column(db.String(200))
     comisaria_cercana = db.Column(db.String(100))
     contacto = db.Column(db.String(50))
     
-    # Datos de gestión
+    servicio = db.Column(db.String(200), nullable=False) 
+
     estado = db.Column(db.String(15), default="PENDIENTE") 
     autorizador = db.Column(db.String(80), nullable=True) 
 
-    # Métodos de utilidad para el formato de fecha (DD/MM/YYYY)
     def get_fecha_inicio(self):
-        # Usamos datetime para parsear la cadena ISO (YYYY-MM-DD) y formatear
         return datetime.strptime(self.fecha_inicio_str, '%Y-%m-%d').strftime('%d/%m/%Y')
 
     def get_fecha_fin(self):
@@ -72,7 +66,7 @@ class SolicitudDB(db.Model):
     
 # --- Creación de Base de Datos y Usuarios Iniciales ---
 with app.app_context():
-    db.create_all() # Esto creará las tablas Usuario y SolicitudDB
+    db.create_all()
 
     if not Usuario.query.filter_by(username='victor_admin').first():
         admin = Usuario(username='victor_admin', rol='Administrador')
@@ -90,19 +84,138 @@ ROLES = {
 }
 
 def tiene_permiso(permiso_requerido):
-    """Verifica si el usuario logueado (current_user) tiene un permiso específico."""
     if not current_user.is_authenticated:
         return False
     rol_del_usuario = current_user.rol
     permisos_del_rol = ROLES.get(rol_del_usuario, [])
     return permiso_requerido in permisos_del_rol
 
-# Nota: Las funciones de gestión ya no usan la lista en memoria, sino que actualizan SolicitudDB.
+def gestionar_solicitud_db(usuario_autorizador, solicitud_id, nueva_estado):
+    if not tiene_permiso("autorizar_solicitud"):
+        return False
+
+    solicitud = SolicitudDB.query.get(solicitud_id)
+    
+    if solicitud:
+        solicitud.estado = nueva_estado
+        solicitud.autorizador = usuario_autorizador
+        db.session.commit()
+        return True
+    return False
+
+def eliminar_solicitud_db(solicitud_id):
+    solicitud = SolicitudDB.query.get(solicitud_id)
+    
+    if solicitud:
+        db.session.delete(solicitud)
+        db.session.commit()
+        return True
+    return False
+
+# --- FUNCIÓN DE GENERACIÓN DE PDF (Corregida para Wrapping) ---
+# app.py (Función generar_pdf_historial - REEMPLAZAR)
+
+def generar_pdf_historial():
+    # 1. Obtener datos
+    solicitudes = SolicitudDB.query.all()
+    
+    # 8 COLUMNAS: Incluyendo el Servicio y la Dirección combinada
+    data = [
+        ['ID', 'Solicitante', 'Servicio', 'Período', 'Dirección/Comisaría', 'Estado', 'Autorizador', 'Contacto']
+    ]
+    
+    for sol in solicitudes:
+        periodo = f"{sol.get_fecha_inicio()} - {sol.get_fecha_fin()}"
+        
+        # Combinación de Dirección/Comisaría con salto de línea
+        direccion_completa = f"{sol.direccion}\n(Comisaría: {sol.comisaria_cercana})"
+        
+        data.append([
+            str(sol.id),
+            sol.solicitante,
+            sol.servicio,
+            periodo,
+            direccion_completa, 
+            sol.estado,
+            sol.autorizador if sol.autorizador else 'N/A',
+            sol.contacto
+        ])
+
+    # 2. Configurar el buffer y el lienzo (canvas)
+    from io import BytesIO 
+    from reportlab.lib.pagesizes import letter, landscape
+    buffer = BytesIO() 
+    p = canvas.Canvas(buffer, pagesize=landscape(letter))
+    width, height = landscape(letter)
+
+    # Título y metadatos
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(30, height - 30, "Historial General de Solicitudes (RBAC)")
+    p.setFont("Helvetica", 10)
+    p.drawString(30, height - 50, f"Generado por: {current_user.username} | Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    p.drawString(30, height - 65, f"Total de Solicitudes: {len(solicitudes)}")
+
+    # 3. Dibujar la tabla
+    
+    # AJUSTE FINAL DE ANCHOS (Total: 730 pts)
+    # [ID, Solicitante, Servicio, Período, Dirección/Comisaría, Estado, Autorizador, Contacto]
+    col_widths = [20, 170, 70, 100, 150, 60, 70, 50] 
+    table = Table(data, colWidths=col_widths)
+    
+    # Estilos de la tabla
+    style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0d6efd')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'), 
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        
+        # Reducir tamaño de fuente del cuerpo de la tabla (8pt)
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        
+        # Alineaciones
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'), # ID
+        ('ALIGN', (5, 0), (5, -1), 'CENTER'), # Estado (Índice 5)
+        ('ALIGN', (7, 0), (7, -1), 'CENTER'), # Contacto (Índice 7)
+        ('ALIGN', (6, 0), (6, -1), 'CENTER'), # Autorizador (Índice 6)
+        
+        ('ALIGN', (1, 0), (4, -1), 'LEFT'),   # Solicitante, Servicio, Período, Dirección/Comisaría (Índices 1-4) a la Izquierda
+    ])
+
+    # Colores por estado (en la columna de 'Estado', que es el Índice 5)
+    for i in range(1, len(data)):
+        estado = data[i][5] 
+        color = colors.white
+        if estado == "APROBADA":
+            color = colors.lightgreen
+        elif estado == "RECHAZADA":
+            color = colors.lightcoral
+        elif estado == "PENDIENTE":
+            color = colors.yellow
+        style.add('BACKGROUND', (5, i), (5, i), color)
+    
+    table.setStyle(style)
+    
+    table_width, table_height = table.wrapOn(p, width - 60, height)
+    table_x = 30
+    table_y = height - 90 - table_height
+    table.drawOn(p, table_x, table_y)
+
+    # 4. Finalizar y generar la respuesta
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+
+    response = Response(buffer.getvalue(), content_type='application/pdf')
+    response.headers['Content-Disposition'] = 'attachment; filename="Historial_Solicitudes.pdf"'
+    
+    return response
+
 
 # --- RUTAS DE FLASK (CONTROLADOR) ---
 
 @app.route('/login', methods=['GET', 'POST'])
-# ... (ruta de login omitida por simplicidad, se mantiene igual) ...
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('panel_admin'))
@@ -120,7 +233,7 @@ def login():
         login_user(user)
         return redirect(url_for('panel_admin'))
         
-    return render_template('login.html') 
+    return render_template('login.html', current_user=current_user) 
 
 @app.route('/logout')
 @login_required
@@ -135,20 +248,19 @@ def formulario_solicitud():
     if request.method == 'POST':
         datos = request.form
         
-        # Guardamos en la Base de Datos (DB)
         nueva_solicitud_db = SolicitudDB(
             solicitante=datos['solicitante'], 
             fecha_inicio_str=datos['inicio'],
             fecha_fin_str=datos['fin'],
             direccion=datos['direccion'],
             comisaria_cercana=datos['comisaria'],
-            contacto=datos['contacto']
+            contacto=datos['contacto'],
+            servicio=datos['servicio'] 
         )
         
         db.session.add(nueva_solicitud_db)
         db.session.commit()
         
-        # Redirigimos al ID de la DB
         return redirect(url_for('confirmacion', id=nueva_solicitud_db.id))
     
     return render_template('solicitud.html', current_user=current_user)
@@ -156,7 +268,6 @@ def formulario_solicitud():
 # Ruta 2: Pantalla de Espera/Confirmación
 @app.route('/confirmacion/<int:id>')
 def confirmacion(id):
-    # Consultamos la DB por el ID
     solicitud = SolicitudDB.query.get_or_404(id) 
     return render_template('confirmacion.html', solicitud=solicitud, id=id, current_user=current_user)
 
@@ -168,10 +279,8 @@ def panel_admin():
     if not tiene_permiso("autorizar_solicitud"):
          return "Acceso Denegado. No tienes permiso de Administrador.", 403
 
-    # CONSULTA: Solo solicitudes PENDIENTES de la DB
     solicitudes = SolicitudDB.query.filter_by(estado="PENDIENTE").all()
     
-    # NOTA: 'solicitudes' ahora es una lista de objetos SolicitudDB, no diccionarios.
     return render_template('administrador.html', solicitudes=solicitudes, current_user=current_user)
 
 # Ruta 4: Manejar la Aprobación/Rechazo
@@ -179,7 +288,7 @@ def panel_admin():
 @login_required
 def gestionar():
     autorizador_user = current_user.username 
-    solicitud_id = request.form['solicitud_id'] # El ID es una cadena al venir del formulario
+    solicitud_id = request.form['solicitud_id'] 
     nueva_accion = request.form['accion'] 
     
     solicitud = SolicitudDB.query.get(solicitud_id)
@@ -196,7 +305,6 @@ def gestionar():
 # Ruta 5: Pantalla principal que muestra todas las solicitudes con su estado.
 @app.route('/solicitudes')
 def lista_general_solicitudes():
-    # Consultamos TODAS las solicitudes de la DB
     solicitudes = SolicitudDB.query.all() 
     return render_template('principal.html', solicitudes=solicitudes, current_user=current_user)
 
@@ -204,7 +312,6 @@ def lista_general_solicitudes():
 @app.route('/gestionar_usuarios', methods=['GET', 'POST'])
 @login_required
 def gestionar_usuarios():
-    # ... (código de gestión de usuarios omitido, se mantiene igual) ...
     if not tiene_permiso("gestionar_usuarios"):
          return "Acceso Denegado. No tienes permiso para gestionar usuarios.", 403
 
@@ -236,12 +343,10 @@ def gestionar_usuarios():
 @app.route('/eliminar_solicitud/<int:id>', methods=['POST'])
 @login_required
 def eliminar_solicitud(id):
-    # 1. Verificar permiso de Administrador
     if not tiene_permiso("autorizar_solicitud"):
         flash("🚫 No tienes permiso para eliminar solicitudes.", 'error')
         return redirect(url_for('lista_general_solicitudes'))
 
-    # 2. Buscar y eliminar la solicitud por su ID en la DB
     solicitud = SolicitudDB.query.get(id)
 
     if solicitud:
@@ -252,114 +357,18 @@ def eliminar_solicitud(id):
     else:
         flash("❌ Error: Solicitud no encontrada.", 'error')
 
-    # Redirigir de nuevo al resumen general
     return redirect(url_for('lista_general_solicitudes'))
-
-# app.py (Reemplaza la función existente)
-
-def generar_pdf_historial():
-    # 1. Obtener datos
-    solicitudes = SolicitudDB.query.all()
-    
-    # Preparamos los datos para la tabla del PDF
-    data = [
-        ['ID', 'Solicitante', 'Período', 'Estado', 'Autorizador', 'Contacto']
-    ]
-    
-    for sol in solicitudes:
-        periodo = f"{sol.get_fecha_inicio()} - {sol.get_fecha_fin()}"
-        
-        data.append([
-            str(sol.id),
-            sol.solicitante,
-            periodo,
-            sol.estado,
-            sol.autorizador if sol.autorizador else 'N/A',
-            sol.contacto
-        ])
-
-    # 2. Configurar el buffer y el lienzo (canvas)
-    from io import BytesIO 
-    buffer = BytesIO() 
-    
-    # Configuración horizontal
-    from reportlab.lib.pagesizes import letter, landscape
-    p = canvas.Canvas(buffer, pagesize=landscape(letter))
-    width, height = landscape(letter) # Ancho: ~792 pts
-
-    # Título y metadatos
-    p.setFont("Helvetica-Bold", 16)
-    p.drawString(30, height - 30, "Historial General de Solicitudes (RBAC)")
-    p.setFont("Helvetica", 10)
-    p.drawString(30, height - 50, f"Generado por: {current_user.username} | Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-    p.drawString(30, height - 65, f"Total de Solicitudes: {len(solicitudes)}")
-
-    # 3. Dibujar la tabla
-    
-    # AUMENTO MÁXIMO DE ANCHOS DE COLUMNA (Total: 730 pts, encaja en el nuevo ancho)
-    # [ID, Solicitante, Período, Estado, Autorizador, Contacto]
-    col_widths = [30, 250, 150, 70, 150, 80] # Total: 730 pts
-    table = Table(data, colWidths=col_widths)
-    
-    # Estilos de la tabla
-    style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0d6efd')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        
-        # ALINEACIONES: Aseguramos que los campos largos estén a la izquierda.
-        ('ALIGN', (0, 0), (0, -1), 'CENTER'), # Columna ID
-        ('ALIGN', (3, 0), (3, -1), 'CENTER'), # Columna Estado
-        ('ALIGN', (5, 0), (5, -1), 'CENTER'), # Columna Contacto
-        ('ALIGN', (1, 0), (2, -1), 'LEFT'),   # Solicitante y Período a la Izquierda
-    ])
-
-    # Colores por estado (solo en la columna de 'Estado')
-    for i in range(1, len(data)):
-        estado = data[i][3] 
-        color = colors.white
-        if estado == "APROBADA":
-            color = colors.lightgreen
-        elif estado == "RECHAZADA":
-            color = colors.lightcoral
-        elif estado == "PENDIENTE":
-            color = colors.yellow
-        style.add('BACKGROUND', (3, i), (3, i), color)
-    
-    table.setStyle(style)
-    
-    # Calcular tamaño y dibujar
-    table_width, table_height = table.wrapOn(p, width - 60, height)
-    table_x = 30
-    table_y = height - 90 - table_height
-    table.drawOn(p, table_x, table_y)
-
-    # 4. Finalizar y generar la respuesta
-    p.showPage()
-    p.save()
-    buffer.seek(0)
-
-    # Crea la respuesta HTTP de descarga de Flask
-    response = Response(buffer.getvalue(), content_type='application/pdf')
-    response.headers['Content-Disposition'] = 'attachment; filename="Historial_Solicitudes.pdf"'
-    
-    return response
 
 # Ruta 8: Descarga de Historial en PDF
 @app.route('/descargar_historial_pdf', methods=['GET'])
 @login_required
 def descargar_historial_pdf():
-    # 1. Verificar permiso de Administrador usando tu lógica RBAC
-    if not current_user.rol == 'Administrador':
-        # Nota: Usamos una comprobación directa del rol ya que 'tiene_permiso'
-        # podría no estar definida si solo usas Flask-Login/SQLAlchemy.
+    if not tiene_permiso("autorizar_solicitud"):
         flash("🚫 No tienes permiso para descargar el historial.", 'error')
         return redirect(url_for('panel_admin'))
         
     return generar_pdf_historial()
+
 
 if __name__ == '__main__':
     app.run(debug=True)
