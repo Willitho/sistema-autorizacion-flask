@@ -44,7 +44,7 @@ login_manager.login_message = "Por favor, inicie sesión para acceder a esta pá
 class Usuario(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.String(255))
     rol = db.Column(db.String(80), nullable=False) 
 
     def set_password(self, password):
