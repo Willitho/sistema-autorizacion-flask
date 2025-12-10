@@ -1,0 +1,26 @@
+/* static/styles.css */
+
+/* Esto es CRÍTICO para asegurar que padding y border no aumenten el tamaño del elemento */
+html {
+  box-sizing: border-box;
+}
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+html, body {
+    height: 100%; /* Asegura que la altura del html y body abarque toda la ventana */
+    margin: 0;
+}
+
+.wrapper {
+    min-height: 100vh; /* Asegura que el contenedor abarque toda la altura visible */
+    display: flex;
+    flex-direction: column;
+}
+
+.content {
+    flex-grow: 1; /* El contenido principal ocupa todo el espacio restante, empujando el footer */
+    /* Aquí NO debe haber padding-bottom ni margin-bottom que el wrapper no pueda compensar */
+    /* El py-4 en el HTML está bien porque el wrapper lo encapsula correctamente con box-sizing */
+}

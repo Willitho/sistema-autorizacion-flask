@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Gestionar Usuarios{% endblock %}
+
+{% block content %}
+<div class="container pb-5">
+    
+    <div class="mb-4">
+        <a href="{{ url_for('panel_admin') }}" class="btn btn-outline-dark btn-sm">
+            <i class="fas fa-arrow-left"></i> Volver al Panel
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Nuevo Usuario</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Usuario</label>
+                            <input type="text" name="username" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Contraseña</label>
+                            <input type="password" name="password" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Rol</label>
+                            <select name="rol" class="form-select">
+                                {% for rol in roles %}
+                                <option value="{{ rol }}">{{ rol }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Crear</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Usuarios Existentes</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Usuario</th>
+                                    <th>Rol</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for u in usuarios %}
+                                <tr>
+                                    <td>{{ u.id }}</td>
+                                    <td class="fw-bold">{{ u.username }}</td>
+                                    <td><span class="badge bg-secondary">{{ u.rol }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

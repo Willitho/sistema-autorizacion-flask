@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Nueva Solicitud{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8">
+            <div class="card shadow border-0">
+                <div class="card-header bg-dark text-white p-3">
+                    <h4 class="mb-0"><i class="fas fa-pen-square"></i> Solicitud Lista 03:00</h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Grado | Apellido</label>
+                            <input type="text" name="solicitante" class="form-control" placeholder="" required>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold">Fecha Inicio</label>
+                                <input type="date" name="inicio" class="form-control" required>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold">Fecha Fin</label>
+                                <input type="date" name="fin" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Servicio</label>
+                            <input type="text" name="servicio" class="form-control" placeholder="Ej. 2da. Guardia" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Dirección</label>
+                            <input type="text" name="direccion" class="form-control" required>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold">Comisaría Cercana</label>
+                                <input type="tel" name="comisaria" class="form-control" required>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold">Teléfono Contacto</label>
+                                <input type="tel" name="contacto" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-block text-end">
+                            <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">Soy Admin</a>
+                            <button type="submit" class="btn btn-success px-5">Enviar Solicitud</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Seguridad{% endblock %}
+
+{% block content %}
+<div class="container d-flex align-items-center justify-content-center" style="min-height: 80vh;">
+    <div class="card shadow p-4 border-0" style="width: 100%; max-width: 400px;">
+        <div class="text-center mb-4">
+            <h1 class="display-6"><i class="fas fa-shield-alt text-primary"></i></h1>
+            <h3>Iniciar Sesión</h3>
+        </div>
+        
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Usuario</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                    <input type="text" name="username" class="form-control" placeholder="Ej. admin" required autofocus>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-bold">Contraseña</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                    <input type="password" name="password" class="form-control" placeholder="••••••" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2">Ingresar</button>
+        </form>
+        
+        <div class="text-center mt-4">
+            <a href="{{ url_for('formulario_solicitud') }}" class="text-decoration-none text-muted small">
+                <i class="fas fa-arrow-left"></i> Ir al Formulario de Solicitud (Visitas)
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
